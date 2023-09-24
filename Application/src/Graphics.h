@@ -1,6 +1,9 @@
 ﻿#pragma once
 #include "RomanceWin.h" // Include first for all our switch cases since d3d11 also includes Windows.h
 #include <d3d11.h>
+#include "DxgiInfoManager.h"
+
+#include "RomanceException.h"
 
 /// Rundown of the various parts of D3D11
 /// - DEVICE:   Must create a device, acts as an interface between the application and the graphics hardware. We use Device
@@ -8,6 +11,39 @@
 /// - CONTEXT:  We use a context to issue draw commands
 class Graphics
 {
+public:
+    /// @brief  Exception class for the window
+    class Exception : public RomanceException
+    {
+        using RomanceException::RomanceException;
+    };
+
+    /// @brief  Exception class that handles HResults
+    class HrException : public Exception
+    {
+    public:
+        HrException(int line, const char* file, HRESULT hr, std::vector<std::string> infoMsgs = {}) noexcept;
+        char const* what() const override;
+        const char* GetType() const noexcept override;
+        static std::string TranslateErrorCode(HRESULT hr);
+        HRESULT GetErrorCode() const noexcept;
+        std::string GetErrorString() const noexcept;
+        std::string GetErrorInfo() const noexcept;
+    private:
+        HRESULT m_hResult;
+        std::string info;
+    };
+
+    /// @brief  Specific device removed exception 
+    class DeviceRemovedException : public HrException
+    {
+        using HrException::HrException;
+    public:
+        const char* GetType() const noexcept override;
+    private:
+        std::string reason;
+    };
+    
 public:
     Graphics(HWND hWnd);
     Graphics(const Graphics&) = delete;
@@ -25,4 +61,8 @@ private:
     IDXGISwapChain* pSwapChain;
     ID3D11DeviceContext* pContext;
     ID3D11RenderTargetView* pTarget;
+
+#if NDEBUG
+    DxgiInfoManager m_InfoManager;
+#endif 
 };

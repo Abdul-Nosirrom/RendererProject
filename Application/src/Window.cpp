@@ -9,22 +9,22 @@
 * Exception Class
 *--------------------------------------------------------------------------------------------------------------*/
 
-Window::Exception::Exception(int line, const char* file, HRESULT hr) noexcept
+Window::HrException::HrException(int line, const char* file, HRESULT hr) noexcept
     : RomanceException(line, file), m_hResult(hr)
 {}
 
-char const* Window::Exception::what() const
+char const* Window::HrException::what() const
 {
     std::ostringstream oss;
     oss << GetType() << std::endl
         << "[Error Code] " << GetErrorCode() << std::endl
-        << "[Description] " << TranslateErrorCode(m_hResult) << std::endl
+        << "[Description] " << Exception::TranslateErrorCode(m_hResult) << std::endl
         << GetOriginString();
     m_whatBuffer = oss.str();
     return m_whatBuffer.c_str();
 }
 
-const char* Window::Exception::GetType() const noexcept
+const char* Window::HrException::GetType() const noexcept
 {
     return RomanceException::GetType();
 }
@@ -53,14 +53,19 @@ std::string Window::Exception::TranslateErrorCode(HRESULT hr)
     return errorString;
 }
 
-HRESULT Window::Exception::GetErrorCode() const noexcept
+HRESULT Window::HrException::GetErrorCode() const noexcept
 {
     return m_hResult;
 }
 
-std::string Window::Exception::GetErrorString() const noexcept
+std::string Window::HrException::GetErrorString() const noexcept
 {
-    return TranslateErrorCode(m_hResult);
+    return Exception::TranslateErrorCode(m_hResult);
+}
+
+const char* Window::NoGFXException::GetType() const noexcept
+{
+    return "Romance Exception [NO GFX]";
 }
 
 /*--------------------------------------------------------------------------------------------------------------
@@ -202,6 +207,10 @@ std::optional<int> Window::ProcessMessages()
 
 Graphics& Window::GFX()
 {
+    if (!pGFX)
+    {
+        throw RDWND_NOGFX_EXCEPT();
+    }
     return *pGFX;
 }
 
@@ -240,8 +249,8 @@ LRESULT WINAPI Window::HandleMsgThunk(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 
 LRESULT WINAPI Window::HandleMsg(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) noexcept
 {
-    static WindowsMessageMap messageMap;
-    OutputDebugString(messageMap(msg, lParam, wParam).c_str());
+    //static WindowsMessageMap messageMap;
+    //OutputDebugString(messageMap(msg, lParam, wParam).c_str());
 
     switch( msg )
     {
