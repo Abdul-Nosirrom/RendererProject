@@ -2,12 +2,14 @@
 #include "RomanceWin.h"
 #include <string>
 #include <vector>
+#include <wrl.h>
+#include <dxgidebug.h>
 
 class DxgiInfoManager
 {
 public:
     DxgiInfoManager();
-    ~DxgiInfoManager();
+    ~DxgiInfoManager() = default;
     DxgiInfoManager(const DxgiInfoManager&) = delete;
     DxgiInfoManager& operator=(const DxgiInfoManager&) = delete;
 
@@ -16,5 +18,5 @@ public:
 
 private:
     unsigned long long next = 0u;
-    struct IDXGIInfoQueue* pDxgiInfoQueue = nullptr;
+    Microsoft::WRL::ComPtr<IDXGIInfoQueue> pDxgiInfoQueue = nullptr;
 };

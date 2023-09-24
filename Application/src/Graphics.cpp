@@ -4,6 +4,9 @@
 #include <dxgitype.h>
 #include <winerror.h>
 
+// namespace for our com ptrs
+namespace wrl = Microsoft::WRL;
+
 // Specify linking to d3d11 library (here instead of project settings)
 #pragma comment(lib, "d3d11.lib")
 
@@ -170,39 +173,20 @@ Graphics::Graphics(HWND hWnd)
 
 
     // Gain access to texture subresource in swap chain (back buffer)
-    ID3D11Resource* pBackBuffer = nullptr;
+    wrl::ComPtr<ID3D11Resource> pBackBuffer = nullptr;
     // Similar to QueryInterface from COM in terms of inputs, except we're querying a resource on the interface
     GFX_THROW_INFO(pSwapChain->GetBuffer(
-        0,                                          /* Index of buffer we wanna get, 0 gives us the back buffer*/
-        UUID(ID3D11Resource),                       /* UUID thing of COM interface, a D3D11 resource in our case */
-        reinterpret_cast<void**>(&pBackBuffer)      /* PP to our resource to be filled out */
+        0,                             /* Index of buffer we wanna get, 0 gives us the back buffer*/
+        UUID(ID3D11Resource),          /* UUID thing of COM interface, a D3D11 resource in our case */
+        (&pBackBuffer)                 /* PP to our resource to be filled out */
         ));
 
     // Create a reference to the render target view to access and modify later
     GFX_THROW_INFO(pDevice->CreateRenderTargetView(
-        pBackBuffer,    /* Buffer in which to receive the render target from */
-        nullptr,        /* Config struct to specify how we wanna receive the RTV, default it */
-        &pTarget        /* ID3D11 Target to be filled out */
+        pBackBuffer.Get(),      /* Buffer in which to receive the render target from */
+        nullptr,                /* Config struct to specify how we wanna receive the RTV, default it */
+        &pTarget                /* ID3D11 Target to be filled out */
         ));
-    
-    // Don't need the back buffer we created, was just temporary to retrieve the RTV
-    pBackBuffer->Release();
-}
-
-Graphics::~Graphics()
-{
-    if (pContext != nullptr)
-    {
-        pContext->Release();
-    }
-    if (pSwapChain != nullptr)
-    {
-        pSwapChain->Release();
-    }
-    if (pDevice != nullptr)
-    {
-        pDevice->Release();
-    }
 }
 
 void Graphics::SwapBuffer()
@@ -216,5 +200,5 @@ void Graphics::SwapBuffer()
 void Graphics::ClearBuffer(float r, float g, float b) noexcept
 {
     const float Color[] = {r, g, b, 1.f};
-    pContext->ClearRenderTargetView(pTarget, Color);
+    pContext->ClearRenderTargetView(pTarget.Get(), Color);
 }

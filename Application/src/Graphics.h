@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "RomanceWin.h" // Include first for all our switch cases since d3d11 also includes Windows.h
 #include <d3d11.h>
+#include <wrl.h>
 #include "DxgiInfoManager.h"
 
 #include "RomanceException.h"
@@ -46,9 +47,9 @@ public:
     
 public:
     Graphics(HWND hWnd);
+    ~Graphics() = default;
     Graphics(const Graphics&) = delete;
     Graphics& operator=(const Graphics&) const = delete;
-    ~Graphics();
 
     /// @brief  Presents the back buffer to the front buffer (so to the screen)
     void SwapBuffer();
@@ -57,10 +58,10 @@ public:
     void ClearBuffer(float r, float g, float b) noexcept;
     
 private:
-    ID3D11Device* pDevice;
-    IDXGISwapChain* pSwapChain;
-    ID3D11DeviceContext* pContext;
-    ID3D11RenderTargetView* pTarget;
+    Microsoft::WRL::ComPtr<ID3D11Device> pDevice;
+    Microsoft::WRL::ComPtr<IDXGISwapChain> pSwapChain;
+    Microsoft::WRL::ComPtr<ID3D11DeviceContext> pContext;
+    Microsoft::WRL::ComPtr<ID3D11RenderTargetView> pTarget;
 
 #if NDEBUG
     DxgiInfoManager m_InfoManager;
