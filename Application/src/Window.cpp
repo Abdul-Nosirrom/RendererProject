@@ -148,6 +148,9 @@ Window::Window(int width, int height, const char* name)
     
     // Show the window
     ShowWindow(m_hWnd, SW_SHOWDEFAULT);
+
+    // Create the graphics object
+    pGFX = std::make_unique<Graphics>(m_hWnd);
 }
 
 Window::~Window()
@@ -195,6 +198,11 @@ std::optional<int> Window::ProcessMessages()
 
     // Return empty optional if no message was retrieved this frame
     return {};
+}
+
+Graphics& Window::GFX()
+{
+    return *pGFX;
 }
 
 LRESULT Window::HandleMsgSetup(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) noexcept

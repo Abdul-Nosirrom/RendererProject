@@ -1,6 +1,8 @@
 ﻿#pragma once
+#include <memory>
 #include <optional>
 
+#include "Graphics.h"
 #include "RomanceException.h"
 #include "RomanceWin.h"
 #include "Keyboard.h"
@@ -59,6 +61,8 @@ public:
 
     /// @brief  Checks PeekMessage (for all windows, hence static), and handles it, returning a value if found an exit message
     static std::optional<int> ProcessMessages();
+
+    Graphics& GFX();
     
 private:
     // Cannot be a member function, Win32 API is not C++, no OOP so need a "free function"
@@ -79,4 +83,5 @@ private:
     int m_Width;
     int m_Height;
     HWND m_hWnd;
+    std::unique_ptr<Graphics> pGFX;
 };

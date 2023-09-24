@@ -45,3 +45,5 @@
 #define STRICT
 
 #include <Windows.h>
+
+#define UUID(__RESOURCE__) __uuidof(__RESOURCE__)

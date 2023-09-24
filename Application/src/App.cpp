@@ -22,8 +22,8 @@ int App::Go()
 
 void App::DoFrame()
 {
-    const float t = m_Timer.Peek();
-    std::ostringstream oss;
-    oss << "Time Elapsed: " << t << std::endl;
-    m_Window.SetTitle(oss.str());
+    // Present frame
+    const float c = sin(m_Timer.Peek()) / 2.f + 0.5f;
+    m_Window.GFX().ClearBuffer(1.f, c, c);
+    m_Window.GFX().SwapBuffer();
 }
