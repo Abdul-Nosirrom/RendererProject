@@ -1,4 +1,6 @@
 ﻿#pragma once
+#include <optional>
+
 #include "RomanceException.h"
 #include "RomanceWin.h"
 #include "Keyboard.h"
@@ -54,6 +56,9 @@ public:
     Window(const Window&) = delete;
     Window& operator=(const Window&) = delete;
     void SetTitle(const std::string& title);
+
+    /// @brief  Checks PeekMessage (for all windows, hence static), and handles it, returning a value if found an exit message
+    static std::optional<int> ProcessMessages();
     
 private:
     // Cannot be a member function, Win32 API is not C++, no OOP so need a "free function"

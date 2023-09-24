@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "OdaTimer.h"
 #include "Window.h"
 
 class App
@@ -14,4 +15,5 @@ private:
 
 private:
     Window m_Window;
+    OdaTimer m_Timer;
 };

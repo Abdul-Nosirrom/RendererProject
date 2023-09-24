@@ -132,7 +132,7 @@ Window::Window(int width, int height, const char* name)
     m_hWnd = CreateWindow(
         WindowClass::GetName(),						/* Class Name that was registered! */
         name,									    /* Window Name */
-        WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU,	/* Window Style*/
+        WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU | WS_SIZEBOX,	/* Window Style*/
         CW_USEDEFAULT, CW_USEDEFAULT,				/* Initial Window Position (Macro for "Default") */
         wr.right - wr.left, wr.bottom - wr.top,     /* Window Size */
         nullptr, nullptr,                           /* Parent & Menu window we don't have, set them to null*/
@@ -162,6 +162,39 @@ void Window::SetTitle(const std::string& title)
     {
         throw RDWND_LAST_EXCEPT();
     }
+}
+
+std::optional<int> Window::ProcessMessages()
+{
+    // Our message pump
+    // Windows are event based, we have to respond to the events our window sends out otherwise the window hangs and does nothing as it waits for our response [GetMessage -> DispatchMessage]
+    // lpfnWndProc: The window procedure is what defines the response to the window messages. We wanna create our own, but still send stuff to the DefWindowProc as there are many many messages,
+    //				so we only wanna respond to the ones we care about, then let the default handle the rest.
+    MSG msg;
+    
+    while (PeekMessage
+    (
+        &msg,			                        /* Message, out var message structure */
+        nullptr,		                    /* HWND, we don't pass in ours because we wanna get all messages belonging to this application. In windows, everything is a window (button etc...), so by setting null here, we get everything belonging to us */
+        0, 0, 			/* Range of messages we want. Setting both to 0 means we wanna get all messages */
+        PM_REMOVE                   /* How to deal with the message after peeking, in this case, remove it from the message queue */
+    ))
+    {
+        // Check for quit because PeekMessage does not signal this via return values, only if it gets a message
+        // GetMessages return value does signal if it was a quit message (hence we did while(GetMessage) in the app loop)
+        if (msg.message == WM_QUIT)
+        {
+            // return the optional wrapping int (arg to PostQuitMessage is in wParam)
+            return msg.wParam;
+        }
+        
+        TranslateMessage(&msg); // Primarily useful for WM_CHAR messages
+        DispatchMessage(&msg);
+        // Default window procedure will close the window on close, but not close the application. For the exact reason that it doesn't make assumptions on what window is being closed (everythings a window afterall)
+    }
+
+    // Return empty optional if no message was retrieved this frame
+    return {};
 }
 
 LRESULT Window::HandleMsgSetup(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) noexcept

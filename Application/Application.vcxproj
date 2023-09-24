@@ -265,6 +265,7 @@
       <AdditionalIncludeDirectories>C:\Dev\RendererProject\RendererProject\include;</AdditionalIncludeDirectories>
       <LinkCompiled>true</LinkCompiled>
     </ClCompile>
+    <ClCompile Include="src\Graphics.cpp" />
     <ClCompile Include="src\Keyboard.cpp" />
     <ClCompile Include="src\Log.cpp">
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -344,6 +345,7 @@
       <LinkCompiled>true</LinkCompiled>
     </ClCompile>
     <ClCompile Include="src\Mouse.cpp" />
+    <ClCompile Include="src\OdaTimer.cpp" />
     <ClCompile Include="src\RomanceException.cpp" />
     <ClCompile Include="src\Window.cpp">
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -502,9 +504,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\App.h" />
+    <ClInclude Include="src\Graphics.h" />
     <ClInclude Include="src\Keyboard.h" />
     <ClInclude Include="src\Log.h" />
     <ClInclude Include="src\Mouse.h" />
+    <ClInclude Include="src\OdaTimer.h" />
     <ClInclude Include="src\resource.h" />
     <ClInclude Include="src\RomanceException.h" />
     <ClInclude Include="src\RomanceWin.h" />
