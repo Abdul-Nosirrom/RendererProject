@@ -187,8 +187,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <None Include="shaders\PixelShader.hlsl" />
+    <None Include="shaders\VertexShader.hlsl" />
     <ClCompile Include="src\App.cpp" />
     <ClCompile Include="src\DxgiInfoManager.cpp" />
+    <ClCompile Include="src\DxgiMessageMap.cpp" />
     <ClCompile Include="src\EntryPoint.cpp">
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -506,6 +509,7 @@
   <ItemGroup>
     <ClInclude Include="src\App.h" />
     <ClInclude Include="src\DxgiInfoManager.h" />
+    <ClInclude Include="src\DxgiMessageMap.h" />
     <ClInclude Include="src\Graphics.h" />
     <ClInclude Include="src\Keyboard.h" />
     <ClInclude Include="src\Log.h" />

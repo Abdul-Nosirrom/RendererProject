@@ -35,6 +35,18 @@ public:
         std::string info;
     };
 
+    /// @brief  Useful for context calls that dont return an HRESULT but can still throw a message
+    class InfoException : public Exception
+    {
+    public:
+        InfoException(int line, const char* file, std::vector<std::string> infoMsgs = {}) noexcept;
+        char const* what() const override;
+        const char* GetType() const noexcept override;
+        std::string GetErrorInfo() const noexcept;
+    private:
+        std::string info;
+    };
+
     /// @brief  Specific device removed exception 
     class DeviceRemovedException : public HrException
     {
@@ -56,6 +68,10 @@ public:
 
     /// @brief  Clears our RTV with the specified color
     void ClearBuffer(float r, float g, float b) noexcept;
+
+    void DrawTestTriangle();
+
+    void CompileShader(LPCWSTR path, LPCSTR entryPoint, LPCSTR profile, ID3DBlob** ppBlob);
     
 private:
     Microsoft::WRL::ComPtr<ID3D11Device> pDevice;

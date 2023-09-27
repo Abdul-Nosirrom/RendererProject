@@ -3,12 +3,16 @@
 #include <sstream>
 #include <dxgitype.h>
 #include <winerror.h>
+#include <d3dcompiler.h>
+#include "DxgiMessageMap.h"
+#include "Window.h"
 
 // namespace for our com ptrs
 namespace wrl = Microsoft::WRL;
 
 // Specify linking to d3d11 library (here instead of project settings)
 #pragma comment(lib, "d3d11.lib")
+#pragma comment(lib, "d3dcompiler.lib")
 
 /*--------------------------------------------------------------------------------------------------------------
 * Exception Class
@@ -20,10 +24,12 @@ namespace wrl = Microsoft::WRL;
 #if NDEBUG
 #define GFX_EXCEPT(hr) Graphics::HrException(__LINE__, __FILE__, hr, m_InfoManager.GetMessages())
 #define GFX_THROW_INFO(hrcall) m_InfoManager.Set(); if (HRESULT hr1 = hrcall; FAILED(hr1)) throw GFX_EXCEPT(hr1)
+#define GFX_THROW_INFO_ONLY(call) m_InfoManager.Set(); (call); {auto v = m_InfoManager.GetMessages(); if (!v.empty()) { throw Graphics::InfoException(__LINE__, __FILE__, v); } }
 #define GFX_DEVICE_REMOVED_EXCEPT(hrcall) if (HRESULT hr2 = hrcall; FAILED(hr2)) { if (hr2 == DXGI_ERROR_DEVICE_REMOVED) throw Graphics::DeviceRemovedException(__LINE__, __FILE__, pDevice->GetDeviceRemovedReason(), m_InfoManager.GetMessages()); else GFX_EXCEPT(hr2); }
 #else
-#define GFX_EXCEPT(hr) Graphics::HrException(__LINE__, __FILE__, hr)
-#define GFX_THROW_INFO(hrcall) infoManager.Set(); if (HRESULT hr1 = hrcall; FAILED(hr1)) throw GFX_EXCEPT(hr1)
+#define GFX_EXCEPT(hr) GFX_EXCEPT_NOINFO(hr)
+#define GFX_THROW_INFO(hrcall) GFX_THROW_NOINFO(hrcall)
+#define GFX_THROW_INFO_ONLY(call) (call)
 #define GFX_DEVICE_REMOVED_EXCEPT(hrcall) if (HRESULT hr2 = hrcall; FAILED(hr2)) { if (hr2 == DXGI_ERROR_DEVICE_REMOVED) throw Graphics::DeviceRemovedException(__LINE__, __FILE__, pDevice->GetDeviceRemovedReason()); else GFX_EXCEPT(hr2); }
 #endif
 
@@ -51,7 +57,7 @@ char const* Graphics::HrException::what() const
     oss << GetType() << std::endl
         << "[Error Code] 0x" << std::hex << std::uppercase << GetErrorCode() <<  std::dec << " (" << (unsigned long)GetErrorCode() << ") " << std::endl
         << "[Error String] " << GetErrorString()
-        << "[Description] " << TranslateErrorCode(m_hResult) << std::endl
+        << "[Description] " << Window::Exception::TranslateErrorCode(m_hResult) << std::endl
         << "[Error Info] " << std::endl << GetErrorInfo() << std::endl
         << GetOriginString();
     m_whatBuffer = oss.str();
@@ -65,26 +71,7 @@ const char* Graphics::HrException::GetType() const noexcept
 
 std::string Graphics::HrException::TranslateErrorCode(HRESULT hr)
 {
-    char* pMsgBuf = nullptr;
-    // Format Message takes hResult and returns a readable error message, filling out our char*. Returns length of error string
-    DWORD nMsgLen = FormatMessage(
-        FORMAT_MESSAGE_ALLOCATE_BUFFER |                 /*  Allocates a buffer for our message, lets pMsgBuf point to it */
-        FORMAT_MESSAGE_FROM_SYSTEM |                            /* Searches message table for a requested message. Allows us to use GetLastError() */
-        FORMAT_MESSAGE_IGNORE_INSERTS,                          /* Ignores insert formatting (e.g %1), so output message can be formatted later */
-        nullptr,
-        hr,
-        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        reinterpret_cast<LPSTR>(&pMsgBuf),
-        0, nullptr);                             /* nSize zero because we're using Allocate_Buffer, otherwise this would set the size of the output buffer. If Alloc flag is set, this is the min size */
-
-    if (nMsgLen == 0)
-    {
-        return "Unidentified Error Code";
-    }
-
-    std::string errorString = pMsgBuf;
-    LocalFree(pMsgBuf);
-    return errorString;
+    return Window::Exception::TranslateErrorCode(hr);
 }
 
 HRESULT Graphics::HrException::GetErrorCode() const noexcept
@@ -94,29 +81,54 @@ HRESULT Graphics::HrException::GetErrorCode() const noexcept
 
 std::string Graphics::HrException::GetErrorString() const noexcept
 {
-    char* pMsgBuf = nullptr;
-    // Format Message takes hResult and returns a readable error message, filling out our char*. Returns length of error string
-    DWORD nMsgLen = FormatMessage(
-        FORMAT_MESSAGE_ALLOCATE_BUFFER |                 /*  Allocates a buffer for our message, lets pMsgBuf point to it */
-        FORMAT_MESSAGE_FROM_SYSTEM |                            /* Searches message table for a requested message. Allows us to use GetLastError() */
-        FORMAT_MESSAGE_IGNORE_INSERTS,                          /* Ignores insert formatting (e.g %1), so output message can be formatted later */
-        nullptr,
-        HRESULT_CODE(m_hResult),
-        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        reinterpret_cast<LPSTR>(&pMsgBuf),
-        0, nullptr);                             /* nSize zero because we're using Allocate_Buffer, otherwise this would set the size of the output buffer. If Alloc flag is set, this is the min size */
+    static DxgiMessageMap messageMap;
+    bool bFoundMsg;
+    std::string errorString = messageMap(m_hResult, bFoundMsg);
 
-    if (nMsgLen == 0)
-    {
-        return "Unidentified Error Code";
-    }
+    if (bFoundMsg) return errorString;
 
-    std::string errorString = pMsgBuf;
-    LocalFree(pMsgBuf);
-    return errorString;
+    return Window::Exception::TranslateErrorCode(HRESULT_CODE(m_hResult));
 }
 
 std::string Graphics::HrException::GetErrorInfo() const noexcept
+{
+    return info;
+}
+
+Graphics::InfoException::InfoException(int line, const char* file, std::vector<std::string> infoMsgs) noexcept
+    : Exception(line, file)
+{
+    // Join all info messages with newline into a single string
+    for (const auto& m : infoMsgs)
+    {
+        info += m;
+        info.push_back('\n');
+        info.push_back('\n');
+    }
+
+    // Remove final newline if it exists
+    if (!info.empty())
+    {
+        info.pop_back();
+    }
+}
+
+char const* Graphics::InfoException::what() const
+{
+    std::ostringstream oss;
+    oss << GetType() << std::endl
+        << "\n[Error Info]\n" << GetErrorInfo() << std::endl
+        << GetOriginString();
+    m_whatBuffer = oss.str();
+    return m_whatBuffer.c_str();
+}
+
+const char* Graphics::InfoException::GetType() const noexcept
+{
+    return "Romance Graphics Info Exception";
+}
+
+std::string Graphics::InfoException::GetErrorInfo() const noexcept
 {
     return info;
 }
@@ -201,4 +213,152 @@ void Graphics::ClearBuffer(float r, float g, float b) noexcept
 {
     const float Color[] = {r, g, b, 1.f};
     pContext->ClearRenderTargetView(pTarget.Get(), Color);
+}
+
+void Graphics::DrawTestTriangle()
+{
+    struct Vertex
+    {
+        float x, y;
+    };
+
+    const Vertex vertices[3] = {
+        {-0.5f, 0.f},
+        {0.f, 0.5f},
+        {0.5f, 0.f}
+    };
+
+    // Setup buffer description struct
+    D3D11_BUFFER_DESC bd;
+    bd.ByteWidth = sizeof(vertices);
+    bd.Usage = D3D11_USAGE_DEFAULT;
+    bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    bd.CPUAccessFlags = 0u;
+    bd.MiscFlags = 0u;
+    bd.StructureByteStride = sizeof(Vertex);
+    
+
+    //
+    D3D11_SUBRESOURCE_DATA sd;
+    sd.pSysMem = vertices;
+    
+    //
+    wrl::ComPtr<ID3D11Buffer> pVertexBuffer;
+    
+    // Need to allocate a vertex buffer
+    GFX_THROW_INFO(pDevice->CreateBuffer(
+        &bd,
+        &sd,
+        &pVertexBuffer
+        ));
+
+    // Set the vertex buffer
+    const UINT stride = sizeof(Vertex);
+    const UINT offset = 0u;
+    pContext->IASetVertexBuffers
+    (
+        0u,
+        1u,
+        pVertexBuffer.GetAddressOf(),
+        &stride,
+        &offset
+        );
+
+    // Create vertex shader COM object
+    wrl::ComPtr<ID3D11VertexShader> pVertexShader;
+    wrl::ComPtr<ID3DBlob> pVSBlob;
+    
+    CompileShader(L"shaders/VertexShader.hlsl", "VSMain", "vs_5_0", &pVSBlob);
+
+    // Create the shader object
+    GFX_THROW_INFO(pDevice->CreateVertexShader(
+        pVSBlob->GetBufferPointer(),
+        (SIZE_T)pVSBlob->GetBufferSize(),
+        nullptr,
+        &pVertexShader));
+
+    // Bind shader to pipeline
+    pContext->VSSetShader(pVertexShader.Get(), nullptr, 0u);
+
+    // Specify the layout of our buffer (Need to do after compiling shader since it takes the blob)
+    wrl::ComPtr<ID3D11InputLayout> pInputLayout;
+
+    const D3D11_INPUT_ELEMENT_DESC ied[] =
+        {
+            {
+                "Position",
+                0u,
+                DXGI_FORMAT_R32G32_FLOAT,               // 2 Floats specifying a single element
+                0u,
+                0u,
+                D3D11_INPUT_PER_VERTEX_DATA,
+                0u
+            }
+        };
+    
+    GFX_THROW_INFO(pDevice->CreateInputLayout(
+        ied, std::size(ied),
+        pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(),
+        &pInputLayout));
+    
+    pContext->IASetInputLayout(pInputLayout.Get());
+    
+    // Create pixel shader COM object
+    wrl::ComPtr<ID3D11PixelShader> pPixelShader;
+
+    CompileShader(L"shaders/PixelShader.hlsl", "PSMain", "ps_5_0", &pVSBlob);
+    
+    GFX_THROW_INFO(pDevice->CreatePixelShader(
+        pVSBlob->GetBufferPointer(),
+        (SIZE_T)pVSBlob->GetBufferSize(),
+        nullptr,
+        &pPixelShader));
+
+    pContext->PSSetShader(pPixelShader.Get(), nullptr, 0u);
+
+    // Bind render target (Output merger)
+    pContext->OMSetRenderTargets(1u, pTarget.GetAddressOf(), nullptr);
+
+    // Set primitive topology to triangle list
+    pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    
+    // Configure viewport
+    D3D11_VIEWPORT vp;
+    vp.Width = 800;
+    vp.Height = 600;
+    vp.MinDepth = 0;
+    vp.MaxDepth = 1;
+    vp.TopLeftX = 0;
+    vp.TopLeftY = 0;
+    pContext->RSSetViewports(1u, &vp);
+    
+    GFX_THROW_INFO_ONLY(pContext->Draw(std::size(vertices), 0u));
+}
+
+void Graphics::CompileShader(LPCWSTR path, LPCSTR entryPoint, LPCSTR profile, ID3DBlob** ppBlob)
+{
+    // Compile shader
+    wrl::ComPtr<ID3DBlob> pErrorBlob;
+
+    const D3D_SHADER_MACRO defines[] =
+    {
+        "DO_OFFSET", "1",
+        NULL, NULL
+    };
+    UINT flags = D3DCOMPILE_ENABLE_STRICTNESS;// | D3DCOMPILE_DEBUG;
+    //LPCSTR profile = (pDevice->GetFeatureLevel() >= D3D_FEATURE_LEVEL_11_0) ? "vs_5_0" : "vs_4_0";
+
+    // NOTE: Shader file encoding has to be ANSI not UNICODE, go to file->file encoding->ISO-8859-1 for hlsl files
+    HRESULT compHR = D3DCompileFromFile(
+        path,
+        defines,
+        nullptr,
+        entryPoint, profile,
+        flags, 0, ppBlob, &pErrorBlob);
+
+    if (compHR < 0)
+    {
+        auto err = (char*)pErrorBlob->GetBufferPointer();
+        throw HrException(__LINE__, __FILE__, compHR, {err});
+    }
 }
