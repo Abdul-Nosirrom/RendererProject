@@ -1,17 +1,12 @@
-cbuffer PS_CBUFFER : register(b0)
-{
-    float r, g, b, a;
-}
 
 struct Interpolants
 {
     float4 Pos : SV_Position;
-    float3 Color : Color;
+    uint ID : SV_PrimitiveID;
 };
 
 
 float4 PSMain(Interpolants PSIn) : SV_Target
 {
-    
-    return float4(PSIn.Color, 1.f);
+    return float4((PSIn.ID/2 +1)/8.f * float3(1.f, 0.2f, 0.2f), 1.f);
 }

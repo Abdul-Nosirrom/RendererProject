@@ -4,11 +4,13 @@
 #include <dxgitype.h>
 #include <winerror.h>
 #include <d3dcompiler.h>
+#include <DirectXMath.h>
 #include "DxgiMessageMap.h"
 #include "Window.h"
 
 // namespace for our com ptrs
 namespace wrl = Microsoft::WRL;
+namespace Math = DirectX;
 
 // Specify linking to d3d11 library (here instead of project settings)
 #pragma comment(lib, "d3d11.lib")
@@ -199,6 +201,45 @@ Graphics::Graphics(HWND hWnd)
         nullptr,                /* Config struct to specify how we wanna receive the RTV, default it */
         &pTarget                /* ID3D11 Target to be filled out */
         ));
+
+    // Create a depth stencil state
+    D3D11_DEPTH_STENCIL_DESC dsDesc = {};
+    dsDesc.DepthEnable = TRUE;
+    dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+    dsDesc.DepthFunc = D3D11_COMPARISON_LESS;
+
+    wrl::ComPtr<ID3D11DepthStencilState> pDSState;
+    GFX_THROW_INFO(pDevice->CreateDepthStencilState(&dsDesc, &pDSState));
+
+    // Set depth stencil state (Output merger, discards pixels before putting it into the frame buffer)
+    pContext->OMSetDepthStencilState(pDSState.Get(), 1u);
+    
+    // Create a depth stencil texture
+    wrl::ComPtr<ID3D11Texture2D> pDSTexture;
+    D3D11_TEXTURE2D_DESC dtDesc = {};
+    dtDesc.Format = DXGI_FORMAT_D32_FLOAT; // D32 is specific for depth values
+    dtDesc.Width = 600u; // Matching viewport
+    dtDesc.Height = 400u;
+    dtDesc.MipLevels = 1u; // no mipmapping
+    dtDesc.ArraySize = 1u; // no mipmapping
+    dtDesc.SampleDesc.Count = 1u; // no AA
+    dtDesc.SampleDesc.Quality = 0u; // no AA
+    dtDesc.Usage = D3D11_USAGE_DEFAULT;
+    dtDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+    
+    // Depth generated every frame so no need to store its data
+    GFX_THROW_INFO(pDevice->CreateTexture2D(&dtDesc, nullptr, &pDSTexture));
+
+    // Create depth stencil view
+    D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+    dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+    dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+    dsvDesc.Texture2D.MipSlice = 0u;
+
+    GFX_THROW_INFO(pDevice->CreateDepthStencilView(pDSTexture.Get(), &dsvDesc, &pDSV));
+
+    // Bind depth stencil view to the pipeline, output merger for same reason mentioned above
+    pContext->OMSetRenderTargets(1u, pTarget.GetAddressOf(), pDSV.Get());
 }
 
 void Graphics::SwapBuffer()
@@ -213,30 +254,52 @@ void Graphics::ClearBuffer(float r, float g, float b) noexcept
 {
     const float Color[] = {r, g, b, 1.f};
     pContext->ClearRenderTargetView(pTarget.Get(), Color);
+    // Clear depth buffer
+    pContext->ClearDepthStencilView(pDSV.Get(), D3D11_CLEAR_DEPTH, 1.f, 0u);
 }
 
-void Graphics::DrawTestTriangle(float dT)
+void Graphics::DrawTestTriangle(float dT, float x, float y)
 {
-    SetupCBuffers(dT);
+    SetupCBuffers(dT, x, y);
     
     struct Vertex
     {
-        float x, y;
-        unsigned char r, g, b, a;
+        float x, y, z;
     };
 
+    const float Size = 1.f;
     const Vertex vertices[] = {
-        {-0.25f, -0.25f, 255, 0, 0}, // 0 Bottom Left
-         {0.25f, -0.25f, 255, 255, 0}, // 1 Bottom Right
-        {-0.25f,  0.25f, 0, 0, 255}, // 2 Top Left
-         {0.25f,  0.25f, 0, 255, 0}  // 3 Top Right
+        {-Size, -Size,  -Size}, // 0
+        {Size, -Size, -Size}, // 1
+        {-Size,  Size, -Size}, // 2
+        {Size,  Size, -Size},  // 3
+        {-Size, -Size,  Size}, // 4
+        {Size, -Size, Size}, // 5
+        {-Size,  Size, Size}, // 6
+        {Size,  Size, Size}  // 7
     };
 
     // NOTE: Winding number is important, unless culling is disabled in RasterizerState, will auto cull back faces
     const int indices[] =
         {
-            2, 1, 0,
-            1, 2, 3
+            // Front Face Quad (Fixed (-) Z)
+            0, 2, 1,
+            2, 3, 1,
+            // Back Face Quad (Fixed (+) Z)
+            4, 5, 7,
+            4, 7, 6,
+            // Right Face Quad (Fixed (+) X)
+            1, 3, 5,
+            3, 7, 5,
+            // Left Face Quad (Fixed (-) X)
+            0, 4, 2,
+            2, 4, 6,
+            // Top Face Quad (Fixed (+) Y)
+            2, 6, 3,
+            3, 6, 7,
+            // Bottom Face Quad (Fixed (-) Y)
+            0, 1, 4,
+            1, 5, 4
         };
 
     // Setup buffer description struct
@@ -322,7 +385,7 @@ void Graphics::DrawTestTriangle(float dT)
             {
                 "Position",
                 0u,
-                DXGI_FORMAT_R32G32_FLOAT,               // 2 Floats specifying a single element
+                DXGI_FORMAT_R32G32B32_FLOAT,               // 3 Floats specifying a single element
                 0u,
                 D3D11_APPEND_ALIGNED_ELEMENT ,
                 D3D11_INPUT_PER_VERTEX_DATA,
@@ -359,15 +422,15 @@ void Graphics::DrawTestTriangle(float dT)
     pContext->PSSetShader(pPixelShader.Get(), nullptr, 0u);
 
     // Bind render target (Output merger)
-    pContext->OMSetRenderTargets(1u, pTarget.GetAddressOf(), nullptr);
+    pContext->OMSetRenderTargets(1u, pTarget.GetAddressOf(), pDSV.Get());
 
     // Set primitive topology to triangle list
     pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     
     // Configure viewport
     D3D11_VIEWPORT vp;
-    vp.Width = 800;
-    vp.Height = 600;
+    vp.Width = 600;
+    vp.Height = 400;
     vp.MinDepth = 0;
     vp.MaxDepth = 1;
     vp.TopLeftX = 0;
@@ -378,17 +441,24 @@ void Graphics::DrawTestTriangle(float dT)
     pContext->DrawIndexed(std::size(indices), 0u, 0u);
 }
 
-void Graphics::SetupCBuffers(float dT)
-{
-    struct PS_CBUFFER
-    {
-        float r, g, b, a;
-    } cbufData;
 
-    //PS_CBUFFER cbufData;
-    cbufData.r = sin(dT) / 2.f + 0.5f;;
-    cbufData.g = cos(dT) / 2.f + 0.5f;;
-    cbufData.b = 0.f;
+void Graphics::SetupCBuffers(float dT, float x, float y)
+{
+    struct ConstantBuffer
+    {
+        Math::XMMATRIX transformation;
+    };
+
+    static float theta = 0.f;
+    theta = dT;
+    
+    const ConstantBuffer cb =
+        {
+            Math::XMMatrixTranspose(
+            Math::XMMatrixRotationZ(theta) * Math::XMMatrixRotationX(theta) * Math::XMMatrixTranslation(x, 0, y + 4.f)
+            * Math::XMMatrixPerspectiveLH(1.f, 3.f/4.f, 0.5f, 10.f))
+        };
+    
 
     static bool bResourceCreated = false;
 
@@ -402,16 +472,16 @@ void Graphics::SetupCBuffers(float dT)
         bd.Usage = D3D11_USAGE_DYNAMIC;
         bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
         bd.MiscFlags = 0u;
-        bd.ByteWidth = sizeof(cbufData);
+        bd.ByteWidth = sizeof(cb);
         bd.StructureByteStride = 0u;//sizeof(PS_CBUFFER);
 
         D3D11_SUBRESOURCE_DATA sd;
-        sd.pSysMem = &cbufData;
+        sd.pSysMem = &cb;
     
         // First need to create the buffer
         GFX_THROW_INFO(pDevice->CreateBuffer(&bd, &sd, &pCBuffer));
 
-        pContext->PSSetConstantBuffers(0u, 1u, pCBuffer.GetAddressOf());
+        pContext->VSSetConstantBuffers(0u, 1u, pCBuffer.GetAddressOf());
 
         bResourceCreated = true;
     }
@@ -420,12 +490,12 @@ void Graphics::SetupCBuffers(float dT)
         // Resource already sent to the GPU, we just need to modify it
         D3D11_MAPPED_SUBRESOURCE msd;
         ZeroMemory(&msd, sizeof(D3D11_MAPPED_SUBRESOURCE));
-
+        
         GFX_THROW_INFO(pContext->Map(pCBuffer.Get(), 0u, D3D11_MAP_WRITE_DISCARD, 0, &msd));
 
         // We got the cbuffer data from the gpu, update its data
         //msd.pData = &cbufData;
-        memcpy(msd.pData, &cbufData, sizeof(cbufData));
+        memcpy(msd.pData, &cb, sizeof(cb));
 
         pContext->Unmap(pCBuffer.Get(), 0u);
     }
@@ -438,7 +508,7 @@ void Graphics::CompileShader(LPCWSTR path, LPCSTR entryPoint, LPCSTR profile, ID
 
     const D3D_SHADER_MACRO defines[] =
     {
-        "DO_OFFSET", "1",
+        "DO_OFFSET", "0",
         NULL, NULL
     };
     UINT flags = D3DCOMPILE_ENABLE_STRICTNESS;// | D3DCOMPILE_DEBUG;
@@ -454,7 +524,7 @@ void Graphics::CompileShader(LPCWSTR path, LPCSTR entryPoint, LPCSTR profile, ID
 
     if (compHR < 0)
     {
-        auto err = (char*)pErrorBlob->GetBufferPointer();
+        auto err = (char*)pErrorBlob->GetBufferPointer(); // NOTE: Need this to get shader compiler errors
         throw HrException(__LINE__, __FILE__, compHR, {err});
     }
 }
