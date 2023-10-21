@@ -215,18 +215,29 @@ void Graphics::ClearBuffer(float r, float g, float b) noexcept
     pContext->ClearRenderTargetView(pTarget.Get(), Color);
 }
 
-void Graphics::DrawTestTriangle()
+void Graphics::DrawTestTriangle(float dT)
 {
+    SetupCBuffers(dT);
+    
     struct Vertex
     {
         float x, y;
+        unsigned char r, g, b, a;
     };
 
-    const Vertex vertices[3] = {
-        {-0.5f, 0.f},
-        {0.f, 0.5f},
-        {0.5f, 0.f}
+    const Vertex vertices[] = {
+        {-0.25f, -0.25f, 255, 0, 0}, // 0 Bottom Left
+         {0.25f, -0.25f, 255, 255, 0}, // 1 Bottom Right
+        {-0.25f,  0.25f, 0, 0, 255}, // 2 Top Left
+         {0.25f,  0.25f, 0, 255, 0}  // 3 Top Right
     };
+
+    // NOTE: Winding number is important, unless culling is disabled in RasterizerState, will auto cull back faces
+    const int indices[] =
+        {
+            2, 1, 0,
+            1, 2, 3
+        };
 
     // Setup buffer description struct
     D3D11_BUFFER_DESC bd;
@@ -264,6 +275,29 @@ void Graphics::DrawTestTriangle()
         &offset
         );
 
+    // Set the index buffer
+    D3D11_BUFFER_DESC ibd;
+    ibd.ByteWidth = sizeof(indices);
+    ibd.Usage = D3D11_USAGE_DEFAULT;
+    ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+    ibd.CPUAccessFlags = 0u;
+    ibd.MiscFlags = 0u;
+    ibd.StructureByteStride = sizeof(int);
+
+    D3D11_SUBRESOURCE_DATA isd;
+    isd.pSysMem = indices;
+
+    wrl::ComPtr<ID3D11Buffer> pIndexBuffer;
+
+    GFX_THROW_INFO(pDevice->CreateBuffer(
+        &ibd,
+        &isd,
+        &pIndexBuffer));
+
+    pContext->IASetIndexBuffer(pIndexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0u);
+
+    //pContext->IASetIndexBuffer()
+
     // Create vertex shader COM object
     wrl::ComPtr<ID3D11VertexShader> pVertexShader;
     wrl::ComPtr<ID3DBlob> pVSBlob;
@@ -290,7 +324,15 @@ void Graphics::DrawTestTriangle()
                 0u,
                 DXGI_FORMAT_R32G32_FLOAT,               // 2 Floats specifying a single element
                 0u,
+                D3D11_APPEND_ALIGNED_ELEMENT ,
+                D3D11_INPUT_PER_VERTEX_DATA,
+                0u
+            },
+            {
+                "Color",
                 0u,
+                DXGI_FORMAT_R8G8B8A8_UNORM,             // UNORM means when it does its type conversion to the shader, it'll normalize the value. E.g unsigned char [0,255] gets converted (if the shader specifies a float for the input) to float [0,1]
+                0u, D3D11_APPEND_ALIGNED_ELEMENT,
                 D3D11_INPUT_PER_VERTEX_DATA,
                 0u
             }
@@ -332,7 +374,61 @@ void Graphics::DrawTestTriangle()
     vp.TopLeftY = 0;
     pContext->RSSetViewports(1u, &vp);
     
-    GFX_THROW_INFO_ONLY(pContext->Draw(std::size(vertices), 0u));
+    //GFX_THROW_INFO_ONLY(pContext->Draw(std::size(vertices), 0u));
+    pContext->DrawIndexed(std::size(indices), 0u, 0u);
+}
+
+void Graphics::SetupCBuffers(float dT)
+{
+    struct PS_CBUFFER
+    {
+        float r, g, b, a;
+    } cbufData;
+
+    //PS_CBUFFER cbufData;
+    cbufData.r = sin(dT) / 2.f + 0.5f;;
+    cbufData.g = cos(dT) / 2.f + 0.5f;;
+    cbufData.b = 0.f;
+
+    static bool bResourceCreated = false;
+
+    if (!bResourceCreated)
+    {
+        //wrl::ComPtr<ID3D11Buffer> pCBuffer;
+
+        // For buffers that are frequently updated, usage = dynamic and CPU access = write
+        D3D11_BUFFER_DESC bd;
+        bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        bd.Usage = D3D11_USAGE_DYNAMIC;
+        bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        bd.MiscFlags = 0u;
+        bd.ByteWidth = sizeof(cbufData);
+        bd.StructureByteStride = 0u;//sizeof(PS_CBUFFER);
+
+        D3D11_SUBRESOURCE_DATA sd;
+        sd.pSysMem = &cbufData;
+    
+        // First need to create the buffer
+        GFX_THROW_INFO(pDevice->CreateBuffer(&bd, &sd, &pCBuffer));
+
+        pContext->PSSetConstantBuffers(0u, 1u, pCBuffer.GetAddressOf());
+
+        bResourceCreated = true;
+    }
+    else
+    {
+        // Resource already sent to the GPU, we just need to modify it
+        D3D11_MAPPED_SUBRESOURCE msd;
+        ZeroMemory(&msd, sizeof(D3D11_MAPPED_SUBRESOURCE));
+
+        GFX_THROW_INFO(pContext->Map(pCBuffer.Get(), 0u, D3D11_MAP_WRITE_DISCARD, 0, &msd));
+
+        // We got the cbuffer data from the gpu, update its data
+        //msd.pData = &cbufData;
+        memcpy(msd.pData, &cbufData, sizeof(cbufData));
+
+        pContext->Unmap(pCBuffer.Get(), 0u);
+    }
 }
 
 void Graphics::CompileShader(LPCWSTR path, LPCSTR entryPoint, LPCSTR profile, ID3DBlob** ppBlob)

@@ -23,8 +23,7 @@ int App::Go()
 void App::DoFrame()
 {
     // Present frame
-    const float c = sin(m_Timer.Peek()) / 2.f + 0.5f;
-    m_Window.GFX().ClearBuffer(1.f, c, c);
-    m_Window.GFX().DrawTestTriangle();
+    m_Window.GFX().ClearBuffer(0.f, 0.f, 0.f);
+    m_Window.GFX().DrawTestTriangle(m_Timer.Peek());
     m_Window.GFX().SwapBuffer();
 }

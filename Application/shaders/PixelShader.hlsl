@@ -1,4 +1,17 @@
-float4 PSMain() : SV_Target
+cbuffer PS_CBUFFER : register(b0)
 {
-    return float4(1.f, 0.f, 1.f, 1.f);
+    float r, g, b, a;
+}
+
+struct Interpolants
+{
+    float4 Pos : SV_Position;
+    float3 Color : Color;
+};
+
+
+float4 PSMain(Interpolants PSIn) : SV_Target
+{
+    
+    return float4(PSIn.Color, 1.f);
 }

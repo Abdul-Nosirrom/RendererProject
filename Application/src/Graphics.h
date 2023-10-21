@@ -69,7 +69,9 @@ public:
     /// @brief  Clears our RTV with the specified color
     void ClearBuffer(float r, float g, float b) noexcept;
 
-    void DrawTestTriangle();
+    void DrawTestTriangle(float dT);
+
+    void SetupCBuffers(float dT);
 
     void CompileShader(LPCWSTR path, LPCSTR entryPoint, LPCSTR profile, ID3DBlob** ppBlob);
     
@@ -78,6 +80,9 @@ private:
     Microsoft::WRL::ComPtr<IDXGISwapChain> pSwapChain;
     Microsoft::WRL::ComPtr<ID3D11DeviceContext> pContext;
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> pTarget;
+
+    // Buffers
+    Microsoft::WRL::ComPtr<ID3D11Buffer> pCBuffer;
 
 #if NDEBUG
     DxgiInfoManager m_InfoManager;
