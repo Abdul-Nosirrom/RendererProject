@@ -1,6 +1,7 @@
 ﻿#include "DxgiInfoManager.h"
 #include "Window.h"
 #include "Graphics.h"
+#include "Errors/WindowErrors.h"
 #include <dxgidebug.h>
 #include <memory>
 

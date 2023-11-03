@@ -1,9 +1,17 @@
 ﻿#pragma once
+
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
+#if !IS_DEBUG
+#define IS_DEBUG 1
+#endif
+
 #include "RomanceWin.h" // Include first for all our switch cases since d3d11 also includes Windows.h
 #include <d3d11.h>
 #include <wrl.h>
+#include "Utility/Maths.h"
 #include "DxgiInfoManager.h"
-
 #include "RomanceException.h"
 
 /// Rundown of the various parts of D3D11
@@ -12,6 +20,7 @@
 /// - CONTEXT:  We use a context to issue draw commands
 class Graphics
 {
+    friend class Bindable;
 public:
     /// @brief  Exception class for the window
     class Exception : public RomanceException
@@ -69,11 +78,12 @@ public:
     /// @brief  Clears our RTV with the specified color
     void ClearBuffer(float r, float g, float b) noexcept;
 
-    void DrawTestTriangle(float dT, float x, float y);
+    void DrawIndexed(UINT count) noexcept(!IS_DEBUG);
 
-    void SetupCBuffers(float dT, float x, float y);
+    void SetProjectionMat(Math::FXMMATRIX projectionMat) noexcept;
+    Math::FXMMATRIX GetProjectionMat() const noexcept;
 
-    void CompileShader(LPCWSTR path, LPCSTR entryPoint, LPCSTR profile, ID3DBlob** ppBlob);
+    void OnViewPortUpdate(float width, float height) noexcept;
     
 private:
     Microsoft::WRL::ComPtr<ID3D11Device> pDevice;
@@ -82,10 +92,14 @@ private:
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> pTarget;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilView> pDSV;
 
-    // Buffers
-    Microsoft::WRL::ComPtr<ID3D11Buffer> pCBuffer;
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> pBackBuffer;
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> pDSTexture;
+    
+    Math::XMMATRIX m_ProjectionMat;
 
-#if NDEBUG
+    D3D11_VIEWPORT m_ViewPort;
+    
+#ifndef NDEBUG
     DxgiInfoManager m_InfoManager;
 #endif 
 };

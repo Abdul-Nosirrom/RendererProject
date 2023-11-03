@@ -1,9 +1,11 @@
 ﻿#include "Window.h"
 
+#include <iostream>
 #include <sstream>
 
 #include "resource.h"
 #include "WindowsMessageMap.h"
+#include "Errors/WindowErrors.h"
 
 /*--------------------------------------------------------------------------------------------------------------
 * Exception Class
@@ -137,7 +139,7 @@ Window::Window(int width, int height, const char* name)
     m_hWnd = CreateWindow(
         WindowClass::GetName(),						/* Class Name that was registered! */
         name,									    /* Window Name */
-        WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU | WS_SIZEBOX,	/* Window Style*/
+        WS_CAPTION | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU | WS_SIZEBOX,	/* Window Style*/
         CW_USEDEFAULT, CW_USEDEFAULT,				/* Initial Window Position (Macro for "Default") */
         wr.right - wr.left, wr.bottom - wr.top,     /* Window Size */
         nullptr, nullptr,                           /* Parent & Menu window we don't have, set them to null*/
@@ -252,6 +254,8 @@ LRESULT WINAPI Window::HandleMsg(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
     //static WindowsMessageMap messageMap;
     //OutputDebugString(messageMap(msg, lParam, wParam).c_str());
 
+    static bool b_Resizing = false;
+
     switch( msg )
     {
         // NOTE: We don't want DefProc to handle this because we want our destructor to destroy the window, so return 0
@@ -262,6 +266,11 @@ LRESULT WINAPI Window::HandleMsg(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
         // NOTE: Clear up states on lose focus to avoid having "zombie keys" floating around
         case WM_KILLFOCUS:
             kbd.ClearState();
+            break;
+
+        // Resizing the window, invoke event on Graphics to adjust viewport
+        case WM_SIZE:
+            HandleWindowResizing(wParam, lParam);
             break;
         ////////////////////////////////
         /***** KEYBOARD MESSAGES *****/
@@ -393,5 +402,19 @@ LRESULT WINAPI Window::HandleMsg(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
         SetWindowText(m_hWnd, oss.str().c_str());
     }
     return DefWindowProc(m_hWnd, msg, wParam, lParam);
+}
+
+void Window::HandleWindowResizing(WPARAM wParam, LPARAM lParam)
+{
+    RECT rectp;// = (PRECT)lParam;
+
+    // Get the window and client dimensions
+    GetClientRect(m_hWnd, &rectp);
+
+    m_Height = rectp.bottom - rectp.top;
+    m_Width = rectp.right - rectp.left;
+
+    if (pGFX)
+        pGFX->OnViewPortUpdate(m_Width, m_Height);
 }
 
