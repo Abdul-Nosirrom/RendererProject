@@ -279,7 +279,7 @@ Math::FXMMATRIX Graphics::GetProjectionMat() const noexcept
     return m_ProjectionMat;
 }
 
-void Graphics::OnViewPortUpdate(float width, float height) noexcept
+void Graphics::OnViewPortUpdate(float width, float height) noexcept(!IS_DEBUG)
 {
     SetProjectionMat( Math::XMMatrixPerspectiveLH( 1.0f,height / width,0.5f,40.0f ) );
 
@@ -332,6 +332,7 @@ void Graphics::OnViewPortUpdate(float width, float height) noexcept
     pContext->OMSetRenderTargets(1, pTarget.GetAddressOf(), pDSV.Get());
     
     return;
+    /*
     pSwapChain->ResizeBuffers(2u, m_ViewPort.Width, m_ViewPort.Height, DXGI_FORMAT_R8G8B8A8_UNORM, 0u);
 
     DXGI_MODE_DESC spDesc = {};
@@ -344,5 +345,5 @@ void Graphics::OnViewPortUpdate(float width, float height) noexcept
 
     pSwapChain->ResizeTarget(&spDesc);
     
-    pContext->RSSetViewports(1u, &m_ViewPort);
+    pContext->RSSetViewports(1u, &m_ViewPort);*/
 }

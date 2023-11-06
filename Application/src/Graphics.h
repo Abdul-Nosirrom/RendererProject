@@ -83,7 +83,7 @@ public:
     void SetProjectionMat(Math::FXMMATRIX projectionMat) noexcept;
     Math::FXMMATRIX GetProjectionMat() const noexcept;
 
-    void OnViewPortUpdate(float width, float height) noexcept;
+    void OnViewPortUpdate(float width, float height) noexcept(!IS_DEBUG);
     
 private:
     Microsoft::WRL::ComPtr<ID3D11Device> pDevice;

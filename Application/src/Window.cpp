@@ -195,7 +195,7 @@ std::optional<int> Window::ProcessMessages()
         if (msg.message == WM_QUIT)
         {
             // return the optional wrapping int (arg to PostQuitMessage is in wParam)
-            return msg.wParam;
+            return int(msg.wParam);
         }
         
         TranslateMessage(&msg); // Primarily useful for WM_CHAR messages
@@ -415,6 +415,6 @@ void Window::HandleWindowResizing(WPARAM wParam, LPARAM lParam)
     m_Width = rectp.right - rectp.left;
 
     if (pGFX)
-        pGFX->OnViewPortUpdate(m_Width, m_Height);
+        pGFX->OnViewPortUpdate(float(m_Width), float(m_Height));
 }
 
