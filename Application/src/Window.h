@@ -12,13 +12,6 @@
 class Window
 {
 public:
-    /// @brief  Base exception class
-    class Exception : RomanceException
-    {
-        using RomanceException::RomanceException;
-    public:
-        static std::string TranslateErrorCode(HRESULT hr);
-    };
     
     /// @brief  Exception class for the window, handles Win32 HRESULT messages
     class HrException : public RomanceException
@@ -34,10 +27,10 @@ public:
     };
 
     /// @brief  Exception to handle no graphics object creation
-    class NoGFXException : public Exception
+    class NoGFXException : public RomanceException
     {
     public:
-        using Exception::Exception;
+        using RomanceException::RomanceException;
         const char* GetType() const noexcept override;
     };
 private:

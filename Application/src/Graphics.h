@@ -1,18 +1,12 @@
 ﻿#pragma once
 
-#ifdef NDEBUG
-#undef NDEBUG
-#endif
-#if !IS_DEBUG
-#define IS_DEBUG 1
-#endif
-
 #include "RomanceWin.h" // Include first for all our switch cases since d3d11 also includes Windows.h
 #include <d3d11.h>
 #include <wrl.h>
 #include "Utility/Maths.h"
 #include "DxgiInfoManager.h"
 #include "RomanceException.h"
+
 
 /// Rundown of the various parts of D3D11
 /// - DEVICE:   Must create a device, acts as an interface between the application and the graphics hardware. We use Device
@@ -22,20 +16,14 @@ class Graphics
 {
     friend class Bindable;
 public:
-    /// @brief  Exception class for the window
-    class Exception : public RomanceException
-    {
-        using RomanceException::RomanceException;
-    };
 
     /// @brief  Exception class that handles HResults
-    class HrException : public Exception
+    class HrException : public RomanceException
     {
     public:
         HrException(int line, const char* file, HRESULT hr, std::vector<std::string> infoMsgs = {}) noexcept;
         char const* what() const override;
         const char* GetType() const noexcept override;
-        static std::string TranslateErrorCode(HRESULT hr);
         HRESULT GetErrorCode() const noexcept;
         std::string GetErrorString() const noexcept;
         std::string GetErrorInfo() const noexcept;
@@ -45,7 +33,7 @@ public:
     };
 
     /// @brief  Useful for context calls that dont return an HRESULT but can still throw a message
-    class InfoException : public Exception
+    class InfoException : public RomanceException
     {
     public:
         InfoException(int line, const char* file, std::vector<std::string> infoMsgs = {}) noexcept;

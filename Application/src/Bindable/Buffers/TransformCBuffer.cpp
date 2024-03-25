@@ -1,16 +1,21 @@
 ﻿#include "TransformCBuffer.h"
 
 TransformCBuffer::TransformCBuffer(Graphics& gfx, const Drawable& parent)
-    : vcbuf(gfx),
-        parent(parent)
+    : parent(parent)
 {
+    if (!pVcbuf)
+    {
+        pVcbuf = std::make_unique<VertexConstantBuffer<Math::XMMATRIX>>(gfx);
+    }
 }
 
 void TransformCBuffer::Bind(Graphics& gfx) noexcept
 {
-    vcbuf.Update( gfx,
+    pVcbuf->Update( gfx,
     Math::XMMatrixTranspose(
         parent.GetTransformMat() * gfx.GetProjectionMat()
     ));
-    vcbuf.Bind( gfx );
+    pVcbuf->Bind( gfx );
 }
+
+std::unique_ptr<VertexConstantBuffer<Math::XMMATRIX>> TransformCBuffer::pVcbuf;

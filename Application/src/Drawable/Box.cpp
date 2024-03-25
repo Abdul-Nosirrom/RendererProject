@@ -1,6 +1,8 @@
 ﻿#include "Box.h"
 
 #include "Bindable/BindableCommon.h"
+#include "Utility/IndexedTriangleList.h"
+#include "Utility/ShapesCommon.h"
 
 Box::Box(Graphics& gfx, std::mt19937& rng, std::uniform_real_distribution<float>& adist,
          std::uniform_real_distribution<float>& ddist, std::uniform_real_distribution<float>& odist,
@@ -17,67 +19,41 @@ Box::Box(Graphics& gfx, std::mt19937& rng, std::uniform_real_distribution<float>
     theta( adist( rng ) ),
     phi( adist( rng ) )
 {
-    const float Size = 1.f;
-    const std::vector<Vertex> vertices = {
-        {-Size, -Size,  -Size}, // 0
-        {Size, -Size, -Size}, // 1
-        {-Size,  Size, -Size}, // 2
-        {Size,  Size, -Size},  // 3
-        {-Size, -Size,  Size}, // 4
-        {Size, -Size, Size}, // 5
-        {-Size,  Size, Size}, // 6
-        {Size,  Size, Size}  // 7
-    };
-
-    // NOTE: Winding number is important, unless culling is disabled in RasterizerState, will auto cull back faces
-    const std::vector<unsigned short> indices =
-        {
-        // Front Face Quad (Fixed (-) Z)
-        0, 2, 1,
-        2, 3, 1,
-        // Back Face Quad (Fixed (+) Z)
-        4, 5, 7,
-        4, 7, 6,
-        // Right Face Quad (Fixed (+) X)
-        1, 3, 5,
-        3, 7, 5,
-        // Left Face Quad (Fixed (-) X)
-        0, 4, 2,
-        2, 4, 6,
-        // Top Face Quad (Fixed (+) Y)
-        2, 6, 3,
-        3, 6, 7,
-        // Bottom Face Quad (Fixed (-) Y)
-        0, 1, 4,
-        1, 5, 4
-    };
-
-    const std::vector<D3D11_INPUT_ELEMENT_DESC> ied =
+    if (!IsStaticInitialized())
     {
+        IndexedTriangleList<Vertex> model = Plane::MakeTesselated<Vertex>(128, 128);
+
+        const std::vector<D3D11_INPUT_ELEMENT_DESC> ied =
         {
-            "Position",
-            0u,
-            DXGI_FORMAT_R32G32B32_FLOAT,               // 3 Floats specifying a single element
-            0u,
-            D3D11_APPEND_ALIGNED_ELEMENT ,
-            D3D11_INPUT_PER_VERTEX_DATA,
-            0u
-        }
-    };
+            {
+                "Position",
+                0u,
+                DXGI_FORMAT_R32G32B32_FLOAT,               // 3 Floats specifying a single element
+                0u,
+                D3D11_APPEND_ALIGNED_ELEMENT ,
+                D3D11_INPUT_PER_VERTEX_DATA,
+                0u
+            }
+        };
 
-    auto pVS = std::make_unique<VertexShader>(gfx, L"shaders/VertexShader.hlsl");
-    auto pVSB = pVS->GetBytecode();
+        auto pVS = std::make_unique<VertexShader>(gfx, L"shaders/VertexShader.hlsl");
+        auto pVSB = pVS->GetBytecode();
 
-    AddBind(std::make_unique<VertexBuffer>(gfx, vertices));
+        AddSharedBindable(std::make_unique<VertexBuffer>(gfx, model.m_Vertices));
 
-    AddBind(std::move(pVS));
-    AddBind(std::make_unique<PixelShader>(gfx, L"shaders/PixelShader.hlsl"));
+        AddSharedBindable(std::move(pVS));
+        AddSharedBindable(std::make_unique<PixelShader>(gfx, L"shaders/PixelShader.hlsl"));
 
-    AddIndexBuffer(std::make_unique<IndexBuffer>(gfx, indices));
+        AddSharedIndexBuffer(std::make_unique<IndexBuffer>(gfx, model.m_Indices));
 
-    AddBind(std::make_unique<InputLayout>(gfx, ied, pVSB));
+        AddSharedBindable(std::make_unique<InputLayout>(gfx, ied, pVSB));
 
-    AddBind(std::make_unique<Topology>(gfx, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST));
+        AddSharedBindable(std::make_unique<Topology>(gfx, D3D11_PRIMITIVE_TOPOLOGY_LINELIST));
+    }
+    else
+    {
+        SetIndexBufferFromSharedBindables();
+    }
 
     AddBind( std::make_unique<TransformCBuffer>( gfx,*this ) );
 }
@@ -94,6 +70,10 @@ void Box::Update(float dt) noexcept
 
 Math::XMMATRIX Box::GetTransformMat() const noexcept
 {
+    return
+    Math::XMMatrixScaling(10.f, 10.f, 1.f) *
+    Math::XMMatrixRotationRollPitchYaw( Math::PI/3.f,0.f,0.f ) *
+    Math::XMMatrixTranslation(0.f ,0.f, 20.f);
     return
         Math::XMMatrixRotationRollPitchYaw( pitch,yaw,roll ) *
         Math::XMMatrixTranslation( r,0.0f,0.0f ) *

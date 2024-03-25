@@ -10,5 +10,5 @@ protected:
     /* Static accessors to graphics objects, Bindable is a friend class of graphics so we can only access it through here */
     static ID3D11DeviceContext* GetContext(Graphics& gfx) noexcept;
     static ID3D11Device* GetDevice(Graphics& gfx) noexcept;
-    static DxgiInfoManager& GetInfoManager(Graphics& gfx) noexcept(IS_DEBUG);
+    static DxgiInfoManager& GetInfoManager(Graphics& gfx) noexcept(!IS_DEBUG);
 };

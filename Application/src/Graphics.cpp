@@ -8,6 +8,7 @@
 #include <DirectXMath.h>
 #include "DxgiMessageMap.h"
 #include "Window.h"
+#include "Errors/ErrorUtilities.h"
 #include "Errors/GraphicsErrors.h"
 
 // namespace for our com ptrs
@@ -23,7 +24,7 @@ namespace wrl = Microsoft::WRL;
 *--------------------------------------------------------------------------------------------------------------*/
 
 Graphics::HrException::HrException(int line, const char* file, HRESULT hr, std::vector<std::string> infoMsgs) noexcept
-    : Exception(line, file), m_hResult(hr)
+    : RomanceException(line, file), m_hResult(hr)
 {
     // Join all info messages with newline into a single string
     for (const auto& m : infoMsgs)
@@ -46,7 +47,7 @@ char const* Graphics::HrException::what() const
     oss << GetType() << std::endl
         << "[Error Code] 0x" << std::hex << std::uppercase << GetErrorCode() <<  std::dec << " (" << (unsigned long)GetErrorCode() << ") " << std::endl
         << "[Error String] " << GetErrorString()
-        << "[Description] " << Window::Exception::TranslateErrorCode(m_hResult) << std::endl
+        << "[Description] " << HRErrors::TranslateErrorCode(m_hResult) << std::endl
         << "[Error Info] " << std::endl << GetErrorInfo() << std::endl
         << GetOriginString();
     m_whatBuffer = oss.str();
@@ -56,11 +57,6 @@ char const* Graphics::HrException::what() const
 const char* Graphics::HrException::GetType() const noexcept
 {
     return "Romance Graphics Exception";
-}
-
-std::string Graphics::HrException::TranslateErrorCode(HRESULT hr)
-{
-    return Window::Exception::TranslateErrorCode(hr);
 }
 
 HRESULT Graphics::HrException::GetErrorCode() const noexcept
@@ -76,7 +72,7 @@ std::string Graphics::HrException::GetErrorString() const noexcept
 
     if (bFoundMsg) return errorString;
 
-    return Window::Exception::TranslateErrorCode(HRESULT_CODE(m_hResult));
+    return HRErrors::TranslateErrorCode(HRESULT_CODE(m_hResult));
 }
 
 std::string Graphics::HrException::GetErrorInfo() const noexcept
@@ -85,7 +81,7 @@ std::string Graphics::HrException::GetErrorInfo() const noexcept
 }
 
 Graphics::InfoException::InfoException(int line, const char* file, std::vector<std::string> infoMsgs) noexcept
-    : Exception(line, file)
+    : RomanceException(line, file)
 {
     // Join all info messages with newline into a single string
     for (const auto& m : infoMsgs)

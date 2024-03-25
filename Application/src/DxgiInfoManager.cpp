@@ -5,6 +5,7 @@
 #include <dxgidebug.h>
 #include <memory>
 
+
 #pragma comment(lib, "dxguid.lib")
 
 #define GFX_THROW_NOINFO(hrcall) if(HRESULT hr = hrcall; FAILED(hr)) throw Graphics::HrException(__LINE__, __FILE__, hr)
@@ -62,3 +63,4 @@ std::vector<std::string> DxgiInfoManager::GetMessages() const
 
     return messages;
 }
+

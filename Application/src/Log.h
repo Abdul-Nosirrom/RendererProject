@@ -1,4 +1,5 @@
-﻿#pragma once
+﻿/*#pragma once
+#define _SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS
 #include <spdlog/spdlog.h>
 
 class Log
@@ -16,3 +17,4 @@ private:
 #define LOG_INFO(...)   ::App::Log::GetCoreLogger()->info(__VA_ARGS__)
 #define LOG_WARN(...)   ::App::Log::GetCoreLogger()->warn(__VA_ARGS__)
 #define LOG_ERROR(...)   ::App::Log::GetCoreLogger()->error(__VA_ARGS__)
+*/

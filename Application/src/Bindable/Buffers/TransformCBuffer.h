@@ -9,6 +9,6 @@ public:
     TransformCBuffer( Graphics& gfx,const Drawable& parent );
     void Bind( Graphics& gfx ) noexcept override;
 private:
-    VertexConstantBuffer<Math::XMMATRIX> vcbuf;
+    static std::unique_ptr<VertexConstantBuffer<Math::XMMATRIX>> pVcbuf;
     const Drawable& parent;
 };

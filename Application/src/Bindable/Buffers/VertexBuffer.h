@@ -4,12 +4,7 @@
 
 struct Vertex
 {
-    struct
-    {
-        float x;
-        float y;
-        float z;
-    } pos;
+    Math::XMFLOAT3 pos;
 };
 
 class VertexBuffer : public Bindable
